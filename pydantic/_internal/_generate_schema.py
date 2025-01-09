@@ -1784,6 +1784,7 @@ class GenerateSchema:
                     fields = collect_dataclass_fields(
                         dataclass,
                         typevars_map=typevars_map,
+                        config_wrapper=self._config_wrapper,
                     )
 
                 if self._config_wrapper.extra == 'allow':

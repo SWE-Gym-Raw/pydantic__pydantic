@@ -1643,8 +1643,8 @@ class GenerateSchema:
         if typevars_map and params:
             params = tuple(replace_types(param, typevars_map) for param in params)
 
-        # NOTE: subtle difference: `tuple[()]` gives `params=()`, whereas `typing.Tuple[()]` gives `params=((),)`
-        # This is only true for <3.11, on Python 3.11+ `typing.Tuple[()]` gives `params=()`
+        # NOTE: subtle difference: `tuple[()]` gives `params=()`, whereas `typing.tuple[()]` gives `params=((),)`
+        # This is only true for <3.11, on Python 3.11+ `typing.tuple[()]` gives `params=()`
         if not params:
             if tuple_type in TUPLE_TYPES:
                 return core_schema.tuple_schema([core_schema.any_schema()], variadic_item_index=0)
@@ -1658,7 +1658,7 @@ class GenerateSchema:
                 # TODO: something like https://github.com/pydantic/pydantic/issues/5952
                 raise ValueError('Variable tuples can only have one type')
         elif len(params) == 1 and params[0] == ():
-            # special case for `Tuple[()]` which means `Tuple[]` - an empty tuple
+            # special case for `tuple[()]` which means `tuple[]` - an empty tuple
             # NOTE: This conditional can be removed when we drop support for Python 3.10.
             return core_schema.tuple_schema([])
         else:
@@ -1693,7 +1693,7 @@ class GenerateSchema:
     def _union_is_subclass_schema(self, union_type: Any) -> core_schema.CoreSchema:
         """Generate schema for `Type[Union[X, ...]]`."""
         args = self._get_args_resolving_forward_refs(union_type, required=True)
-        return core_schema.union_schema([self.generate_schema(typing.Type[args]) for args in args])
+        return core_schema.union_schema([self.generate_schema(type[args]) for args in args])
 
     def _subclass_schema(self, type_: Any) -> core_schema.CoreSchema:
         """Generate schema for a Type, e.g. `Type[int]`."""
@@ -1705,16 +1705,14 @@ class GenerateSchema:
         if _typing_extra.is_any(type_param):
             return self._type_schema()
         elif _typing_extra.is_type_alias_type(type_param):
-            return self.generate_schema(typing.Type[type_param.__value__])
+            return self.generate_schema(type[type_param.__value__])
         elif isinstance(type_param, typing.TypeVar):
             if type_param.__bound__:
                 if _typing_extra.origin_is_union(get_origin(type_param.__bound__)):
                     return self._union_is_subclass_schema(type_param.__bound__)
                 return core_schema.is_subclass_schema(type_param.__bound__)
             elif type_param.__constraints__:
-                return core_schema.union_schema(
-                    [self.generate_schema(typing.Type[c]) for c in type_param.__constraints__]
-                )
+                return core_schema.union_schema([self.generate_schema(type[c]) for c in type_param.__constraints__])
             else:
                 return self._type_schema()
         elif _typing_extra.origin_is_union(get_origin(type_param)):
